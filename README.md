@@ -1,4 +1,4 @@
-# 🎮 MinecraftLCE-Xbox
+#  MinecraftLCE-Xbox
 
 **Minecraft Legacy Console Edition (TU19) running on Xbox One via Dev Mode**
 
@@ -7,7 +7,7 @@
 
 ---
 
-## ⚡ What is this?
+##  What is this?
 
 This repository contains the source code of Minecraft Legacy Console Edition (v1.6.0560.0 / TU19)
 adapted to compile and run as a **UWP** app on **Xbox One in Developer Mode**.
@@ -15,24 +15,24 @@ adapted to compile and run as a **UWP** app on **Xbox One in Developer Mode**.
 The original project is a PC port of the console version. This fork adds a UWP platform layer
 that allows packaging the game as an `.appx` and sideloading it onto an Xbox One.
 
-### 📸 Current Status
+###  Current Status
 
 | | |
 |---|---|
-| 🏗️ Build | ✅ Compiles with zero errors (VS2022, x64 Release) |
-| 📦 Package | ✅ Signed `.appx`, installable |
-| 🎨 Rendering | ✅ D3D11 + title screen working |
-| 🎭 UI (Iggy/SWF) | ✅ 378 SWFs loaded, menus render |
-| 🔄 Game Loop | ✅ Running stable (~214 MB) |
-| 🏷️ Gamertag | ✅ Xbox gamertag used as player name |
-| 🎮 Gamepad | ⏳ Work in progress |
-| 🔊 Audio | ⏳ Miles Sound System won't load |
-| 💾 Save/Load | ⏳ Needs path adaptation |
-| 🌐 Multiplayer | ⏳ Not tested on Xbox |
+|  Build | ✅ Compiles with zero errors (VS2022, x64 Release) |
+|  Package | ✅ Signed `.appx`, installable |
+|  Rendering | ✅ D3D11 + title screen working |
+|  UI (Iggy/SWF) | ✅ 378 SWFs loaded, menus render |
+|  Game Loop | ✅ Running stable (~214 MB) |
+|  Gamertag | ✅ Xbox gamertag used as player name |
+|  Gamepad | ⏳ Work in progress |
+|  Audio | ⏳ Miles Sound System won't load |
+|  Save/Load | ⏳ Needs path adaptation |
+|  Multiplayer | ⏳ Not tested on Xbox |
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -63,12 +63,12 @@ cmake -S . -B build_uwp -G "Visual Studio 17 2022" -A x64 `
 cmake --build build_uwp --config Release
 ```
 
-> 📖 **Full guide with packaging, signing, and Xbox deployment:**
+>  **Full guide with packaging, signing, and Xbox deployment:**
 > See **[BUILD_UWP.md](BUILD_UWP.md)**
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -92,7 +92,7 @@ The entire game (Client + World) is **unchanged**. Only the platform layer
 
 ---
 
-## 📁 UWP File Structure
+##  UWP File Structure
 
 ```
 UWP/
@@ -108,7 +108,7 @@ UWP/
 
 ---
 
-## 🔧 Technical Challenges Solved
+##  Technical Challenges Solved
 
 | Problem | Solution |
 |---------|----------|
@@ -121,18 +121,18 @@ UWP/
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are very welcome! Areas that need help:
 
-1. 🎮 **Gamepad input** — Connect `XboxGamepadInput.h` to `InputManager`
-2. 🔊 **Audio** — Get Miles Sound System working or replace with XAudio2
-3. 💾 **Save/Load** — Adapt paths to UWP `LocalState` folder
-4. 🧪 **Real Xbox testing** — Validate everything on hardware
+1.  **Gamepad input** — Connect `XboxGamepadInput.h` to `InputManager`
+2.  **Audio** — Get Miles Sound System working or replace with XAudio2
+3.  **Save/Load** — Adapt paths to UWP `LocalState` folder
+4.  **Real Xbox testing** — Validate everything on hardware
 
 ---
 
-## 📜 Credits
+##  Credits
 
 - Original source code: [Minecraft LCE](https://archive.org/details/minecraft-legacy-console-edition-source-code) (TU19)
 - PC port: [smartcmd/MinecraftConsoles](https://github.com/smartcmd/MinecraftConsoles)
