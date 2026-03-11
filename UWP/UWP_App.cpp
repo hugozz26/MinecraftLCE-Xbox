@@ -123,6 +123,9 @@ extern Renderer InternalRenderManager;
 // we must provide them here.
 // ============================================================================
 
+// Global package root path — used by BufferedImage, FileInputStream, etc.
+char g_PackageRootPath[512] = {};
+
 HINSTANCE               hMyInst = nullptr;
 char                    chGlobalText[256] = {};
 uint16_t                ui16GlobalText[256] = {};
@@ -364,7 +367,27 @@ App::App()
 void App::Initialize(CoreApplicationView^ applicationView)
 {
     LogInit();
+    SetUnhandledExceptionFilter(CrashFilter);
     LogMsg("UWP: Initialize() START\n");
+
+    // ---- Package root path (needed by BufferedImage, FileInputStream, etc.) ----
+    {
+        char cwd[512] = {};
+        GetCurrentDirectoryA(512, cwd);
+        LogMsg("UWP: CWD = %s\n", cwd);
+
+        auto pkg = Windows::ApplicationModel::Package::Current;
+        auto installPath = pkg->InstalledLocation->Path;
+        char installPathA[512] = {};
+        WideCharToMultiByte(CP_ACP, 0, installPath->Data(), -1, installPathA, 512, nullptr, nullptr);
+        LogMsg("UWP: Package install path = %s\n", installPathA);
+
+        strncpy(g_PackageRootPath, installPathA, 511);
+        g_PackageRootPath[511] = '\0';
+
+        SetCurrentDirectoryA(installPathA);
+        LogMsg("UWP: CWD set to package install path\n");
+    }
 
     applicationView->Activated +=
         ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
@@ -731,342 +754,11 @@ void App::OnVisibilityChanged(CoreWindow^, VisibilityChangedEventArgs^ args)
 } // namespace MinecraftLCE
 
 // ============================================================================
-// Win32 Window Procedure
-// ============================================================================
-static bool g_win32WindowClosed = false;
-
-static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch (msg)
-    {
-    case WM_CLOSE:
-        g_win32WindowClosed = true;
-        return 0;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED)
-        {
-            g_rScreenWidth  = LOWORD(lParam);
-            g_rScreenHeight = HIWORD(lParam);
-            if (g_rScreenHeight > 0)
-                g_iAspectRatio = static_cast<float>(g_rScreenWidth) / g_rScreenHeight;
-        }
-        return 0;
-    }
-    return DefWindowProcW(hWnd, msg, wParam, lParam);
-}
-
-// ============================================================================
-// D3D11 Device + HWND SwapChain (Win32 desktop path for fullTrust)
-// ============================================================================
-static void CreateDeviceAndSwapChain_HWND()
-{
-    LogMsg("UWP: CreateDeviceAndSwapChain_HWND() START\n");
-    HRESULT hr = S_OK;
-
-    UINT createDeviceFlags = 0;
-#ifdef _DEBUG
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-    D3D_FEATURE_LEVEL featureLevels[] = {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-    };
-
-    ComPtr<ID3D11Device>        device;
-    ComPtr<ID3D11DeviceContext>  context;
-
-    hr = D3D11CreateDevice(
-        nullptr,
-        D3D_DRIVER_TYPE_HARDWARE,
-        nullptr,
-        createDeviceFlags,
-        featureLevels, ARRAYSIZE(featureLevels),
-        D3D11_SDK_VERSION,
-        device.GetAddressOf(),
-        &g_featureLevel,
-        context.GetAddressOf());
-
-    if (FAILED(hr))
-    {
-        LogMsg("UWP: Hardware D3D failed (hr=0x%08X), trying WARP...\n", hr);
-        hr = D3D11CreateDevice(
-            nullptr,
-            D3D_DRIVER_TYPE_WARP,
-            nullptr,
-            createDeviceFlags,
-            featureLevels, ARRAYSIZE(featureLevels),
-            D3D11_SDK_VERSION,
-            device.GetAddressOf(),
-            &g_featureLevel,
-            context.GetAddressOf());
-    }
-    LogMsg("UWP: D3D11CreateDevice hr=0x%08X featureLevel=0x%X\n", hr, g_featureLevel);
-    if (FAILED(hr)) { LogMsg("UWP: FATAL — D3D11CreateDevice failed!\n"); return; }
-
-    g_pd3dDevice       = device.Get();
-    g_pImmediateContext = context.Get();
-    g_pd3dDevice->AddRef();
-    g_pImmediateContext->AddRef();
-    g_driverType = D3D_DRIVER_TYPE_HARDWARE;
-
-    // HWND swap chain
-    int width  = g_rScreenWidth;
-    int height = g_rScreenHeight;
-
-    DXGI_SWAP_CHAIN_DESC1 scd = {};
-    scd.Width              = width;
-    scd.Height             = height;
-    scd.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
-    scd.SampleDesc.Count   = 1;
-    scd.SampleDesc.Quality = 0;
-    scd.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
-    scd.BufferCount        = 2;
-    scd.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-    scd.Scaling            = DXGI_SCALING_STRETCH;
-
-    ComPtr<IDXGIDevice1>  dxgiDevice;
-    ComPtr<IDXGIAdapter>  dxgiAdapter;
-    ComPtr<IDXGIFactory2> dxgiFactory;
-
-    device.As(&dxgiDevice);
-    dxgiDevice->GetAdapter(dxgiAdapter.GetAddressOf());
-    dxgiAdapter->GetParent(IID_PPV_ARGS(dxgiFactory.GetAddressOf()));
-
-    ComPtr<IDXGISwapChain1> swapChain1;
-    LogMsg("UWP: Creating swap chain for HWND...\n");
-    hr = dxgiFactory->CreateSwapChainForHwnd(
-        g_pd3dDevice,
-        g_hWnd,
-        &scd,
-        nullptr,
-        nullptr,
-        swapChain1.GetAddressOf());
-    LogMsg("UWP: CreateSwapChainForHwnd hr=0x%08X\n", hr);
-    if (FAILED(hr)) { LogMsg("UWP: FATAL — CreateSwapChainForHwnd failed!\n"); return; }
-
-    g_pSwapChain = swapChain1.Detach();
-
-    // Render target view
-    ComPtr<ID3D11Texture2D> backBuffer;
-    g_pSwapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.GetAddressOf()));
-    hr = g_pd3dDevice->CreateRenderTargetView(backBuffer.Get(), nullptr, &g_pRenderTargetView);
-    LogMsg("UWP: CreateRenderTargetView hr=0x%08X\n", hr);
-
-    // Depth-stencil
-    D3D11_TEXTURE2D_DESC depthDesc = {};
-    depthDesc.Width      = width;
-    depthDesc.Height     = height;
-    depthDesc.MipLevels  = 1;
-    depthDesc.ArraySize  = 1;
-    depthDesc.Format     = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthDesc.SampleDesc.Count = 1;
-    depthDesc.Usage      = D3D11_USAGE_DEFAULT;
-    depthDesc.BindFlags  = D3D11_BIND_DEPTH_STENCIL;
-
-    hr = g_pd3dDevice->CreateTexture2D(&depthDesc, nullptr, &g_pDepthStencilBuffer);
-    LogMsg("UWP: CreateTexture2D (depth) hr=0x%08X\n", hr);
-
-    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    dsvDesc.ViewDimension      = D3D11_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Texture2D.MipSlice = 0;
-    hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilBuffer, &dsvDesc, &g_pDepthStencilView);
-
-    g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
-    D3D11_VIEWPORT vp = {};
-    vp.Width    = static_cast<float>(width);
-    vp.Height   = static_cast<float>(height);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    g_pImmediateContext->RSSetViewports(1, &vp);
-
-    RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
-    PostProcesser::GetInstance().Init();
-
-    LogMsg("UWP: D3D11 device + HWND swap chain created OK\n");
-}
-
-// ============================================================================
-// Game-loop GameTick for Win32 path (same as App::GameTick)
-// ============================================================================
-static Minecraft* g_pMinecraftWin32 = nullptr;
-static bool g_gameInitWin32 = false;
-
-static void GameTick_Win32()
-{
-    if (!g_gameInitWin32 || !g_pMinecraftWin32) return;
-
-    RenderManager.StartFrame();
-    app.UpdateTime();
-    InputManager.Tick();
-    StorageManager.Tick();
-    RenderManager.Tick();
-    g_NetworkManager.DoWork();
-
-    if (app.GetGameStarted())
-    {
-        g_pMinecraftWin32->run_middle();
-        app.SetAppPaused(
-            g_NetworkManager.IsLocalGame() &&
-            g_NetworkManager.GetPlayerCount() == 1 &&
-            ui.IsPauseMenuDisplayed(ProfileManager.GetPrimaryPad()));
-    }
-    else
-    {
-        g_pMinecraftWin32->soundEngine->tick(nullptr, 0.0f);
-        g_pMinecraftWin32->textures->tick(true, false);
-        IntCache::Reset();
-        if (app.GetReallyChangingSessionType())
-            g_pMinecraftWin32->tickAllConnections();
-    }
-
-    g_pMinecraftWin32->soundEngine->playMusicTick();
-
-    ui.tick();
-    ui.render();
-
-    g_pMinecraftWin32->gameRenderer->ApplyGammaPostProcess();
-    RenderManager.Present();
-    ui.CheckMenuDisplayed();
-    app.HandleXuiActions();
-
-    if (!ProfileManager.IsFullVersion())
-    {
-        if (app.GetGameStarted())
-        {
-            if (app.IsAppPaused())
-                app.UpdateTrialPausedTimer();
-            ui.UpdateTrialTimer(ProfileManager.GetPrimaryPad());
-        }
-    }
-
-    Vec3::resetPool();
-}
-
-// Global package root path — used by BufferedImage and other file loaders
-char g_PackageRootPath[512] = {};
-
-// ============================================================================
-// UWP entry point — Win32 HWND path (fullTrustApplication)
+// UWP entry point — CoreApplication (Xbox compatible)
 // ============================================================================
 [Platform::MTAThread]
 int main(Platform::Array<Platform::String^>^)
 {
-    LogInit();
-    SetUnhandledExceptionFilter(CrashFilter);
-    LogMsg("UWP: main() START (Win32 HWND path)\n");
-
-    // Log current working directory and package install location
-    {
-        char cwd[512] = {};
-        GetCurrentDirectoryA(512, cwd);
-        LogMsg("UWP: CWD = %s\n", cwd);
-
-        auto pkg = Windows::ApplicationModel::Package::Current;
-        auto installPath = pkg->InstalledLocation->Path;
-        char installPathA[512] = {};
-        WideCharToMultiByte(CP_ACP, 0, installPath->Data(), -1, installPathA, 512, nullptr, nullptr);
-        LogMsg("UWP: Package install path = %s\n", installPathA);
-
-        // Store in global for use by BufferedImage etc.
-        strncpy(g_PackageRootPath, installPathA, 511);
-        g_PackageRootPath[511] = '\0';
-
-        // Set CWD to package install path so game can find its data files
-        SetCurrentDirectoryA(installPathA);
-        LogMsg("UWP: CWD set to package install path\n");
-    }
-
-    // -- 1) Fetch Xbox gamertag --
-    LogMsg("UWP: Fetching gamertag...\n");
-    FetchXboxGamertag();
-    LogMsg("UWP: Gamertag = %s\n", g_Win64Username);
-
-    // -- 2) Register Win32 window class --
-    WNDCLASSEXW wc = {};
-    wc.cbSize        = sizeof(WNDCLASSEXW);
-    wc.style         = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc   = WndProc;
-    wc.hInstance      = GetModuleHandleW(nullptr);
-    wc.hCursor       = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512)); // IDC_ARROW
-    wc.lpszClassName = L"MinecraftLCE_Win";
-    RegisterClassExW(&wc);
-    LogMsg("UWP: Window class registered\n");
-
-    // -- 3) Create fullscreen borderless window --
-    int screenW = GetSystemMetrics(SM_CXSCREEN);
-    int screenH = GetSystemMetrics(SM_CYSCREEN);
-    g_iScreenWidth  = 1920;
-    g_iScreenHeight = 1080;
-    g_rScreenWidth  = screenW;
-    g_rScreenHeight = screenH;
-    g_iAspectRatio  = static_cast<float>(screenW) / screenH;
-
-    g_hWnd = CreateWindowExW(
-        0,
-        L"MinecraftLCE_Win",
-        L"Minecraft LCE",
-        WS_POPUP | WS_VISIBLE,
-        0, 0, screenW, screenH,
-        nullptr, nullptr,
-        wc.hInstance, nullptr);
-    LogMsg("UWP: Window created: %dx%d HWND=0x%p\n", screenW, screenH, (void*)g_hWnd);
-
-    if (!g_hWnd)
-    {
-        LogMsg("UWP: FATAL — CreateWindowExW failed! Error=%d\n", GetLastError());
-        return 1;
-    }
-
-    ShowWindow(g_hWnd, SW_SHOW);
-    UpdateWindow(g_hWnd);
-    g_hInst = wc.hInstance;
-    hMyInst = wc.hInstance;
-
-    // -- 4) Create D3D11 device + HWND swap chain --
-    LogMsg("UWP: Creating D3D device...\n");
-    CreateDeviceAndSwapChain_HWND();
-    if (!g_pd3dDevice || !g_pSwapChain)
-    {
-        LogMsg("UWP: FATAL — D3D init failed!\n");
-        return 1;
-    }
-
-    // -- 5) Init game runtime --
-    LogMsg("UWP: Initialising game runtime...\n");
-    g_pMinecraftWin32 = InitialiseMinecraftRuntime_UWP();
-    if (!g_pMinecraftWin32)
-    {
-        LogMsg("UWP: FATAL — InitialiseMinecraftRuntime_UWP failed!\n");
-        return 1;
-    }
-    g_gameInitWin32 = true;
-    LogMsg("UWP: Game initialized, entering message loop\n");
-
-    // -- 6) Win32 message pump + game loop --
-    MSG msg = {};
-    while (!g_win32WindowClosed && !app.m_bShutdown)
-    {
-        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
-        {
-            if (msg.message == WM_QUIT) { g_win32WindowClosed = true; break; }
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-        if (g_win32WindowClosed) break;
-
-        GameTick_Win32();
-    }
-
-    LogMsg("UWP: Game loop ended, cleaning up\n");
-    if (g_pImmediateContext) g_pImmediateContext->ClearState();
-    LogMsg("UWP: main() EXIT\n");
+    CoreApplication::Run(ref new MinecraftLCE::AppSource());
     return 0;
 }

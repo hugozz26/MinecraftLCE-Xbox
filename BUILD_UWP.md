@@ -128,14 +128,16 @@ MinecraftConsoles-PC/
 
 | PC (Win32) | UWP (Xbox) |
 |------------|------------|
-| `_tWinMain()` + HWND msg loop | `main()` + `CreateWindowExW` + `PeekMessage` loop |
-| `D3D11CreateDeviceAndSwapChain` | `D3D11CreateDevice` + `CreateSwapChainForHwnd` (DXGI 1.2) |
+| `_tWinMain()` + HWND msg loop | `CoreApplication::Run()` + `IFrameworkView` + `CoreWindow` |
+| `D3D11CreateDeviceAndSwapChain` | `D3D11CreateDevice` + `CreateSwapChainForCoreWindow` (DXGI 1.2) |
 | XInput9_1_0 | `xinput.lib` (UWP umbrella) |
 
-> **Why not CoreApplication::Run()?**
-> We tried `IFrameworkView` + `CoreWindow`, but the `EntryPoint` in the manifest must
-> be `windows.fullTrustApplication` (required for the 4J desktop libs). This is incompatible
-> with `CoreApplication::Run()`. Solution: direct Win32 HWND, which works in Dev Mode.
+> **Why CoreApplication::Run() and not Win32 HWND?**
+> Xbox One does not support `windows.fullTrustApplication` (Desktop Bridge). The app
+> must use the proper UWP activation model: `IFrameworkView` + `CoreWindow`. The
+> `EntryPoint` in the manifest is `MinecraftLCE.App`, which maps to the C++/CX ref class
+> `MinecraftLCE::App` implementing `IFrameworkView`. Win32 HWND APIs (`CreateWindowExW`,
+> `RegisterClassExW`, etc.) do not exist on Xbox OneOS.
 
 ### Problem 2: Implicit UNICODE
 
@@ -284,18 +286,23 @@ The manifest at `appx_layout\AppxManifest.xml` needs adjustments:
 ```xml
 <!-- Identity: choose a name and generate a Publisher that matches your certificate -->
 <Identity
-    Name="MinecraftLCE.DevMode"
+    Name="MinecraftLCE.XboxDevMode"
     Publisher="CN=MinecraftLCE"
     Version="1.6.0.0"
     ProcessorArchitecture="x64" />
 
-<!-- Application: EntryPoint MUST be windows.fullTrustApplication -->
+<!-- Application: EntryPoint MUST be the WinRT class name (NOT windows.fullTrustApplication) -->
+<!-- This maps to namespace MinecraftLCE, class App in UWP_App.cpp/h -->
 <Application Id="App"
     Executable="MinecraftLCE.exe"
-    EntryPoint="windows.fullTrustApplication">
+    EntryPoint="MinecraftLCE.App">
 ```
 
 > ⚠️ The `Publisher` in the manifest **MUST** be identical to the certificate Subject!
+>
+> ⚠️ **Xbox compatibility**: `EntryPoint` must be a WinRT activatable class, NOT `windows.fullTrustApplication`.
+> Xbox One does not support Desktop Bridge / fullTrust apps. The app uses `CoreApplication::Run()`
+> with `IFrameworkView`, so the entry point must be `MinecraftLCE.App`.
 
 ### 3. Create a self-signed certificate
 
