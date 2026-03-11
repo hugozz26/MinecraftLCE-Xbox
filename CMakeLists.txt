@@ -153,6 +153,14 @@ if(MSVC)
     /NODEFAULTLIB:libcmtd.lib
     /NODEFAULTLIB:libcpmt.lib
     /NODEFAULTLIB:libcpmtd.lib
+    # Delay-load DLLs that don't exist on Xbox UWP.
+    # USER32.dll: cursor/mouse functions (ClientToScreen, ClipCursor,
+    #   ShowCursor, SetCursorPos, GetClientRect) — never called on Xbox.
+    # XINPUT1_4.dll: desktop XInput — Xbox uses XINPUTUAP.dll instead.
+    #   The ordinal import comes from the 4J libs; we never call it on Xbox
+    #   because XINPUTUAP.dll satisfies our own XInput calls.
+    /DELAYLOAD:USER32.dll
+    /DELAYLOAD:XINPUT1_4.dll
   )
   # We need the regular VC x64 lib path in addition to the store path
   # because some CRT/STL libs may not be in the store path.
@@ -198,7 +206,11 @@ target_link_libraries(MinecraftLCE PRIVATE
   # user32.lib for Win32 APIs used by game code (clipboard, cursor, raw input,
   # GetClientRect). Not in WindowsApp.lib umbrella. Since /APPCONTAINER is
   # omitted (Dev Mode sideload), linking user32 directly works fine.
+  # Delay-loaded on Xbox (see /DELAYLOAD flags above).
   user32.lib
+
+  # Required by /DELAYLOAD linker option
+  delayimp.lib
 )
 
 # ==============================================================================
