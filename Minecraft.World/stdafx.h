@@ -7,10 +7,18 @@
 #ifdef _WINDOWS64
 #define _HAS_STD_BYTE 0					// solve (std::)'byte' ambiguity with windows headers
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+// UWP: override WINAPI_FAMILY before including windows.h
+#ifdef _UWP
+#include "..\UWP\stdafx_uwp_pre.h"
+#endif
 // Windows Header Files:
 #include <windows.h>
 #include <malloc.h>
 #include <tchar.h>
+// UWP: function stubs that need Win32 types (BOOL, LPCSTR, etc.)
+#ifdef _UWP
+#include "..\UWP\stdafx_uwp_post.h"
+#endif
 // TODO: reference additional headers your program requires here
 #include <d3d11.h>
 #endif

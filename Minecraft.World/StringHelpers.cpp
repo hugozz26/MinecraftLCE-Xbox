@@ -49,11 +49,19 @@ wstring convStringToWstring(const string& converting)
 // Convert for filename wstrings to a straight character pointer for Xbox APIs. The returned string is only valid until
 // this function is called again, and it isn't thread-safe etc. as I'm just storing the returned name in a local static
 // to save having to clear it up everywhere this is used.
+
+// UWP: package root path for absolute path resolution
+extern char g_PackageRootPath[512];
+
 const char *wstringtofilename(const wstring& name)
 {
-	static char buf[256];
-	assert(name.length()<256);
-	for(unsigned int i = 0; i < name.length(); i++ )
+	static char buf[1024];
+	
+	// Convert wstring to narrow char with slash fix
+	char narrow[512];
+	unsigned int len = (unsigned int)name.length();
+	assert(len < 512);
+	for(unsigned int i = 0; i < len; i++ )
 	{
 		wchar_t c = name[i];
 #if defined __PS3__ || defined __ORBIS__
@@ -61,10 +69,23 @@ const char *wstringtofilename(const wstring& name)
 #else
 		if(c=='/') c='\\';
 #endif
-		assert(c<128);	// Will we have to do any conversion of non-ASCII characters in filenames?
-		buf[i] = static_cast<char>(c);
+		assert(c<128);
+		narrow[i] = static_cast<char>(c);
 	}
-	buf[name.length()] = 0;
+	narrow[len] = 0;
+
+#ifdef _UWP
+	// UWP: prepend absolute package path for relative paths
+	// (SetCurrentDirectory doesn't work reliably in UWP)
+	if (g_PackageRootPath[0] != '\0' && narrow[0] != '\\' && narrow[0] != '/' && !(len >= 2 && narrow[1] == ':'))
+	{
+		snprintf(buf, sizeof(buf), "%s\\%s", g_PackageRootPath, narrow);
+	}
+	else
+#endif
+	{
+		memcpy(buf, narrow, len + 1);
+	}
 	return buf;
 }
 

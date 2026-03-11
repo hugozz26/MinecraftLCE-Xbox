@@ -9,19 +9,27 @@
 
 ConsoleUIController ui;
 
+// Forward-declare the logger from UWP_App.cpp
+extern void LogMsg(const char* fmt, ...);
+
 void ConsoleUIController::init(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11RenderTargetView* pRenderTargetView, ID3D11DepthStencilView* pDepthStencilView, S32 w, S32 h)
 {
 #ifdef _ENABLEIGGY
 	m_pRenderTargetView = pRenderTargetView;
 	m_pDepthStencilView = pDepthStencilView;
 
+	LogMsg("UICtrl: calling preInit(%d,%d)...\n", w, h);
 	// Shared init
 	preInit(w,h);
+	LogMsg("UICtrl: preInit OK\n");
 
+	LogMsg("UICtrl: calling gdraw_D3D11_CreateContext...\n");
 	gdraw_funcs = gdraw_D3D11_CreateContext(dev, ctx, w, h);
+	LogMsg("UICtrl: gdraw_D3D11_CreateContext returned %p\n", gdraw_funcs);
 
 	if(!gdraw_funcs)
 	{
+		LogMsg("UICtrl: *** GDraw FAILED! ***\n");
 		app.DebugPrintf("Failed to initialise GDraw!\n");
 #ifndef _CONTENT_PACKAGE
 		__debugbreak();
@@ -29,42 +37,23 @@ void ConsoleUIController::init(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D
 		app.FatalLoadError();
 	}
 
-	/* For each of the resource types, we specify the size of the cache that
-	GDraw will use. We specify both the number of possible objects
-	(the number of "handles") of each type, and the maximum memory
-	to use for each one.
-
-	For some platforms, we would actually pass
-	in the memory to use, and the GDraw will strictly obey the resource
-	request. For D3D, storage is managed by D3D, and GDraw only
-	approximates the requested storage amount. In fact, you don't
-	even have to set these at all for D3D, which has some "reasonable" defaults,
-	but we'll set it here for clarity.
-	(The storage required for
-	the handles is separate, and always allocated through the global allocator
-	specified in IggyInit.)
-
-	The size that's actually needed here depends on the content of your
-	Flash file. There's more info in the documentation about how to
-	determine how big they should be. But for now, we'll just set them
-	really big so if you substitute a different file it should work. */
 	gdraw_D3D11_SetResourceLimits(GDRAW_D3D11_RESOURCE_vertexbuffer, 5000,  16 * 1024 * 1024);
 	gdraw_D3D11_SetResourceLimits(GDRAW_D3D11_RESOURCE_texture     , 5000, 128 * 1024 * 1024);
 	gdraw_D3D11_SetResourceLimits(GDRAW_D3D11_RESOURCE_rendertarget,   10,  64 * 1024 * 1024);
+	LogMsg("UICtrl: resource limits set\n");
 
 	/* GDraw is all set, so we'll point Iggy at it. */
 	IggySetGDraw(gdraw_funcs);
+	LogMsg("UICtrl: IggySetGDraw OK\n");
 
-	/* Flash content can have audio embedded.  We'd like to be able
-	to play back any audio there is in the Flash that we load,
-	but in this tutorial we don't care about processing the sound
-	ourselves.  So we call $IggyAudioUseDirectSound to tell Iggy
-	to go ahead and send any sound from the Flash movie directly
-	to Win32's default DirectSound device. */
-	IggyAudioUseDirectSound();
+	// DISABLED for UWP — DirectSound is not available in packaged apps.
+	// Game audio uses miniaudio, so Iggy embedded Flash audio is not needed.
+	// IggyAudioUseDirectSound();
 
+	LogMsg("UICtrl: calling postInit()...\n");
 	// Shared init
 	postInit();
+	LogMsg("UICtrl: postInit OK\n");
 #endif
 }
 

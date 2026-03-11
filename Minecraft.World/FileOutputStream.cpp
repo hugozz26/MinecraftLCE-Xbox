@@ -30,7 +30,7 @@ FileOutputStream::FileOutputStream(const File &file) : m_fileHandle( INVALID_HAN
 		nullptr // Unsupported
 		);
 #else
-	m_fileHandle = CreateFile(
+	m_fileHandle = CreateFileA(
 		wstringtofilename(file.getPath()) , // file name
 		GENERIC_WRITE, // access mode
 		0, // share mode // TODO 4J Stu - Will we need to share file? Probably not but...

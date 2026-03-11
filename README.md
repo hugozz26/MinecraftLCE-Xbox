@@ -1,123 +1,140 @@
-# MinecraftConsoles
+# 🎮 MinecraftLCE-Xbox
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/jrum7HhegA)
+**Minecraft Legacy Console Edition (TU19) rodando no Xbox One via Dev Mode**
 
-![Tutorial World](.github/TutorialWorld.png)
+> Fork do [smartcmd/MinecraftConsoles](https://github.com/smartcmd/MinecraftConsoles)
+> com adaptação completa para UWP / Xbox One.
 
-## Introduction
+---
 
-This project contains the source code of Minecraft Legacy Console Edition v1.6.0560.0 (TU19) from https://archive.org/details/minecraft-legacy-console-edition-source-code, with some fixes and improvements applied.
+## ⚡ O que é isso?
 
-## Download
-Windows users can download our [Nightly Build](https://github.com/smartcmd/MinecraftConsoles/releases/tag/nightly)! Simply download the `.zip` file and extract it to a folder where you'd like to keep the game. You can set your username in `username.txt` (you'll have to make this file) and add servers to connect to in `servers.txt`
+Este repositório contém o código-fonte do Minecraft Legacy Console Edition (v1.6.0560.0 / TU19)
+adaptado para compilar e rodar como aplicativo **UWP** no **Xbox One em Developer Mode**.
 
-## Platform Support
+O projeto original é um port para PC da versão de console. Este fork adiciona uma camada UWP
+que permite empacotar o jogo como `.appx` e instalar no Xbox One.
 
-- **Windows**: Supported for building and running the project
-- **macOS / Linux**: The Windows nightly build may run through Wine or CrossOver based on community reports, but this is unofficial and not currently tested by the maintainers
+### 📸 Status
 
-## Features
+| | |
+|---|---|
+| 🏗️ Build | ✅ Compila sem erros (VS2022, x64 Release) |
+| 📦 Package | ✅ `.appx` assinado e instalável |
+| 🎨 Renderização | ✅ D3D11 + tela de título funcionando |
+| 🎭 UI (Iggy/SWF) | ✅ 378 SWFs carregados, menus renderizam |
+| 🔄 Game Loop | ✅ Rodando estável (~214 MB) |
+| 🏷️ Gamertag | ✅ Nome do Xbox usado automaticamente |
+| 🎮 Gamepad | ⏳ Em desenvolvimento |
+| 🔊 Áudio | ⏳ Miles Sound System não carrega |
+| 💾 Save/Load | ⏳ Precisa adaptação de paths |
+| 🌐 Multiplayer | ⏳ Não testado no Xbox |
 
-- Fixed compilation and execution in both Debug and Release mode on Windows using Visual Studio 2022
-- Added support for keyboard and mouse input
-- Added fullscreen mode support (toggle using F11)
-- (WIP) Disabled V-Sync for better performance
-- Added a high-resolution timer path on Windows for smoother high-FPS gameplay timing
-- Device's screen resolution will be used as the game resolution instead of using a fixed resolution (1920x1080)
-- LAN Multiplayer & Discovery
-- Added persistent username system via "username.txt"
+---
 
-## Multiplayer
+## 🚀 Quick Start
 
-Basic LAN multiplayer is available on the Windows build
+### Pré-requisitos
 
-- Hosting a multiplayer world automatically advertises it on the local network
-- Other players on the same LAN can discover the session from the in-game Join Game menu
-- Game connections use TCP port `25565` by default
-- LAN discovery uses UDP port `25566`
-- Add servers to your server list with `servers.txt` (temp solution)
-- Rename yourself without losing data by keeping your `uid.dat`
+- **Visual Studio 2022** com workloads C++ Desktop + UWP
+- **CMake 3.24+**
+- **Windows SDK 10.0.22621.0**
+- Xbox One em **Dev Mode** (para deploy — opcional para build/teste no PC)
 
-Parts of this feature are based on code from [LCEMP](https://github.com/LCEMP/LCEMP) (thanks!)
-
-### servers.txt
-
-To add a server to your game, create the `servers.txt` file in the same directory as you have `Minecraft.Client.exe`. Inside, follow this format:
-```
-serverip.example.com
-25565
-The name of your server in UI!
-```
-
-For example, here's a valid servers.txt
-```
-1.1.1.1
-25565
-Cloudflare's Very Own LCE Server
-127.0.0.1
-25565
-Localhost Test Crap
-```
-
-### Launch Arguments
-
-| Argument           | Description                                                                                         |
-|--------------------|-----------------------------------------------------------------------------------------------------|
-| `-name <username>` | Sets your in-game username.                                                                         |
-| `-fullscreen`      | Launches the game in Fullscreen mode                                                                |
-
-Example:
-```
-Minecraft.Client.exe -name Steve -fullscreen
-```
-
-## Controls (Keyboard & Mouse)
-
-- **Movement**: `W` `A` `S` `D`
-- **Jump / Fly (Up)**: `Space`
-- **Sneak / Fly (Down)**: `Shift` (Hold)
-- **Sprint**: `Ctrl` (Hold) or Double-tap `W`
-- **Inventory**: `E`
-- **Chat**: `T`
-- **Drop Item**: `Q`
-- **Crafting**: `C` Use `Q` and `E` to move through tabs (cycles Left/Right)
-- **Toggle View (FPS/TPS)**: `F5`
-- **Fullscreen**: `F11`
-- **Pause Menu**: `Esc`
-- **Attack / Destroy**: `Left Click`
-- **Use / Place**: `Right Click`
-- **Select Item**: `Mouse Wheel` or keys `1` to `9`
-- **Accept or Decline Tutorial hints**: `Enter` to accept and `B` to decline
-- **Game Info (Player list and Host Options)**: `TAB`
-- **Toggle HUD**: `F1`
-- **Toggle Debug Info**: `F3`
-- **Open Debug Overlay**: `F4`
-- **Toggle Debug Console**: `F6`
-
-## Build & Run
-
-1. Install [Visual Studio 2022](https://aka.ms/vs/17/release/vs_community.exe).
-2. Clone the repository.
-3. Open the project by double-clicking `MinecraftConsoles.sln`.
-4. Make sure `Minecraft.Client` is set as the Startup Project.
-5. Set the build configuration to **Debug** (Release is also OK but has some bugs) and the target platform to **Windows64**, then build and run.
-
-### CMake (Windows x64)
+### Build
 
 ```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Debug --target MinecraftClient
+# 1. Clonar
+git clone https://github.com/hugozz26/MinecraftLCE-Xbox.git
+cd MinecraftLCE-Xbox
+
+# 2. Configurar SDK (rodar em cada sessão PowerShell)
+$env:WindowsSdkDir = 'C:\Program Files (x86)\Windows Kits\10\'
+$env:WindowsSDKVersion = '10.0.22621.0\'
+$env:WindowsSDKLibVersion = '10.0.22621.0\'
+$env:UCRTVersion = '10.0.22621.0'
+$env:UniversalCRTSdkDir = 'C:\Program Files (x86)\Windows Kits\10\'
+
+# 3. Configurar CMake
+cmake -S . -B build_uwp -G "Visual Studio 17 2022" -A x64 `
+    -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0.22621.0
+
+# 4. Build
+cmake --build build_uwp --config Release
 ```
 
-For more information, see [COMPILE.md](COMPILE.md).
+> 📖 **Guia completo com empacotamento, assinatura e deploy no Xbox:**
+> Veja **[BUILD_UWP.md](BUILD_UWP.md)**
 
-## Known Issues
+---
 
-- Native builds for platforms other than Windows have not been tested and are most likely non-functional. The Windows nightly build may still run on macOS and Linux through Wine or CrossOver, but that path is unofficial and not currently supported
+## 🏗️ Arquitetura
 
-## Contributors
-Would you like to contribute to this project? Please read our [Contributor's Guide](CONTRIBUTING.md) before doing so! This document includes our current goals, standards for inclusions, rules, and more.
+```
+┌─────────────────────────────────────────────┐
+│         UWP_App.cpp (Win32 HWND)            │
+│  CreateWindowExW + PeekMessage loop         │
+│  D3D11 Device + SwapChainForHwnd            │
+├─────────────────────────────────────────────┤
+│         GameTick_Win32()                    │
+│  Input → Minecraft::tick() → UI → Present  │
+├─────────────────────────────────────────────┤
+│  Minecraft.Client + Minecraft.World         │
+│  (lógica do jogo inalterada)                │
+│                                             │
+│  4J_Render_PC.lib · 4J_Input.lib            │
+│  4J_Storage.lib · iggy_w64.lib              │
+└─────────────────────────────────────────────┘
+```
 
-## Star History
+O jogo inteiro (Client + World) é **inalterado**. Apenas a camada de plataforma
+(entry point, D3D11, input, file I/O) foi adaptada para UWP.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=smartcmd/MinecraftConsoles&type=date&legend=top-left)](https://www.star-history.com/?spm=a2c6h.12873639.article-detail.7.7b9d7fabjNxTRk#smartcmd/MinecraftConsoles&type=date&legend=top-left)
+---
+
+## 📁 Estrutura dos Arquivos UWP
+
+```
+UWP/
+├── UWP_App.cpp           ← Entry point + D3D11 + game loop + logger
+├── UWP_App.h             ← Globals (device, context, swap chain)
+├── XboxGamepadInput.h    ← Windows.Gaming.Input wrapper
+├── stdafx_uwp.h          ← Junta pre.h + <windows.h> + post.h
+├── stdafx_uwp_pre.h      ← #undef UNICODE, força Desktop API partition
+├── stdafx_uwp_post.h     ← Macros de compatibilidade
+├── Package.appxmanifest  ← Identidade do pacote
+└── Assets/               ← Logos do pacote (placeholder)
+```
+
+---
+
+## 🔧 Desafios Técnicos Resolvidos
+
+| Problema | Solução |
+|----------|---------|
+| `CoreApplication::Run()` incompatível com fullTrustApplication | Win32 HWND direto (`CreateWindowExW`) |
+| UNICODE implícito pelo CMake WindowsStore | `#undef UNICODE` em `stdafx_uwp_pre.h` |
+| CRT mismatch (4J libs `/MT` vs UWP `/MD`) | Binary-patch das 4J libs + `NODEFAULTLIB` |
+| `GetFileAttributes` restrito no UWP | Substituído por `CreateFileA` + `CloseHandle` |
+| Paths relativos falham (CWD = system32) | `wstringtofilename()` prepende path do pacote |
+| `__debugbreak()` crasha em release | `_CONTENT_PACKAGE` define desabilita |
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são muito bem-vindas! Áreas que precisam de ajuda:
+
+1. 🎮 **Input por gamepad** — Conectar `XboxGamepadInput.h` ao `InputManager`
+2. 🔊 **Áudio** — Fazer Miles Sound System funcionar ou substituir por XAudio2
+3. 💾 **Save/Load** — Adaptar paths para `LocalState` do pacote UWP
+4. 🧪 **Testes no Xbox real** — Validar tudo no hardware
+
+---
+
+## 📜 Créditos
+
+- Código-fonte original: [Minecraft LCE](https://archive.org/details/minecraft-legacy-console-edition-source-code) (TU19)
+- Port para PC: [smartcmd/MinecraftConsoles](https://github.com/smartcmd/MinecraftConsoles)
+- Comunidade: [Discord MinecraftConsoles](https://discord.gg/jrum7HhegA)
+- Adaptação UWP/Xbox: [@hugozz26](https://github.com/hugozz26)

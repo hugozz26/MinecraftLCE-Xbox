@@ -18,11 +18,4 @@ extern "C" FILE* __iob_func(void)
     return iob;
 }
 
-// std::_Winerror_map was an internal MSVC runtime function used by
-// std::system_category::message(). Old .lib files compiled with VS2012
-// may reference it. Provide a minimal stub.
-namespace std {
-    const char* _Winerror_map(int) {
-        return "";
-    }
-}
+// std::_Winerror_map is provided by compat_shims.cpp — do NOT duplicate here.

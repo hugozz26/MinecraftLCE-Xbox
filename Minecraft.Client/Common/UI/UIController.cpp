@@ -277,9 +277,13 @@ void UIController::SetSystemUIShowing(LPVOID lpParam,bool bVal)
 	pClass->SetSysUIShowing(bVal);
 }
 
+// Forward-declare the logger from UWP_App.cpp
+extern void LogMsg(const char* fmt, ...);
+
 // SETUP
 void UIController::preInit(S32 width, S32 height)
 {
+	LogMsg("UICtrl::preInit START %dx%d\n", width, height);
 	m_fScreenWidth = width;
 	m_fScreenHeight = height;
 	m_bScreenWidthSetup = true;
@@ -289,32 +293,47 @@ void UIController::preInit(S32 width, S32 height)
 	allocator.user_callback_data = this;
 	allocator.mem_alloc = &AllocateFunction;
 	allocator.mem_free = &DeallocateFunction;
+	LogMsg("UICtrl: calling IggyInit (allocator)...\n");
 	IggyInit(&allocator);
 #else
+	LogMsg("UICtrl: calling IggyInit(0)...\n");
 	IggyInit(0);
 #endif
+	LogMsg("UICtrl: IggyInit OK\n");
 
 	IggySetWarningCallback(WarningCallback, 0);
 	IggySetTraceCallbackUTF8(TraceCallback, 0);
+	LogMsg("UICtrl: callbacks set\n");
 
 	setFontCachingCalculationBuffer(-1);
+	LogMsg("UICtrl::preInit DONE\n");
 }
 
 void UIController::postInit()
 {
+	LogMsg("UICtrl::postInit START\n");
 	// set up a custom rendering callback
 	IggySetCustomDrawCallback(&UIController::CustomDrawCallback, this);
 	IggySetAS3ExternalFunctionCallbackUTF16 ( &UIController::ExternalFunctionCallback, this );
 	IggySetTextureSubstitutionCallbacks ( &UIController::TextureSubstitutionCreateCallback , &UIController::TextureSubstitutionDestroyCallback, this );
+	LogMsg("UICtrl: Iggy callbacks set OK\n");
 
+	LogMsg("UICtrl: calling SetupFont()...\n");
 	SetupFont();
+	LogMsg("UICtrl: SetupFont OK\n");
 	//
+	LogMsg("UICtrl: calling loadSkins()...\n");
 	loadSkins();
+	LogMsg("UICtrl: loadSkins OK\n");
 
+	LogMsg("UICtrl: creating UIGroups (eUIGroup_COUNT=%d)...\n", (int)eUIGroup_COUNT);
 	for(unsigned int i = 0; i < eUIGroup_COUNT; ++i)
 	{
+		LogMsg("UICtrl: creating UIGroup %d...\n", i);
 		m_groups[i] = new UIGroup(static_cast<EUIGroup>(i),i-1);
+		LogMsg("UICtrl: UIGroup %d = %p\n", i, m_groups[i]);
 	}
+	LogMsg("UICtrl: UIGroups created\n");
 
 
 #ifdef ENABLE_IGGY_EXPLORER
@@ -336,7 +355,9 @@ void UIController::postInit()
 	IggyInstallPerfmon(iggy_perfmon);
 #endif
 
+	LogMsg("UICtrl: calling NavigateToScene(0, eUIScene_Intro)...\n");
 	NavigateToScene(0, eUIScene_Intro);
+	LogMsg("UICtrl::postInit DONE\n");
 }
 
 
@@ -379,15 +400,23 @@ UITTFFont *UIController::createFont(EFont fontLanguage)
 
 void UIController::SetupFont()
 {
+	LogMsg("UICtrl::SetupFont START  m_eCurrentFont=%d m_eTargetFont=%d\n", (int)m_eCurrentFont, (int)m_eTargetFont);
 	// 4J-JEV: Language hasn't changed or is already changing.
-	if ( (m_eCurrentFont != m_eTargetFont) || !UIString::setCurrentLanguage() ) return;
+	if ( (m_eCurrentFont != m_eTargetFont) || !UIString::setCurrentLanguage() ) {
+		LogMsg("UICtrl::SetupFont early-return (no change needed)\n");
+		return;
+	}
 
+	LogMsg("UICtrl::SetupFont language changed, calling XGetLanguage()...\n");
 	DWORD nextLanguage = UIString::getCurrentLanguage();
+	LogMsg("UICtrl::SetupFont nextLanguage=%u\n", nextLanguage);
 	m_eTargetFont = getFontForLanguage(nextLanguage);
+	LogMsg("UICtrl::SetupFont targetFont=%d\n", (int)m_eTargetFont);
 
 	// flag a language change to reload the string tables in the DLC
+	LogMsg("UICtrl::SetupFont calling app.m_dlcManager.LanguageChanged()...\n");
 	app.m_dlcManager.LanguageChanged();
-
+	LogMsg("UICtrl::SetupFont calling app.loadStringTable()...\n");
 	app.loadStringTable(); // Switch to use new string table,
 
 	if (m_eTargetFont == m_eCurrentFont)
@@ -406,14 +435,19 @@ void UIController::SetupFont()
 		m_mcTTFFont = nullptr;
 	}
 
+	LogMsg("UICtrl::SetupFont creating fonts (targetFont=%d)...\n", (int)m_eTargetFont);
 	if(m_eTargetFont == eFont_Bitmap)
 	{
+		LogMsg("UICtrl::SetupFont creating bitmap fonts...\n");
 		// these may have been set up by a previous language being chosen
 		if (m_moj7 == nullptr)		m_moj7  = new UIBitmapFont(SFontData::Mojangles_7);
+		LogMsg("UICtrl::SetupFont moj7=%p\n", m_moj7);
 		if (m_moj11 == nullptr)	m_moj11 = new UIBitmapFont(SFontData::Mojangles_11);
+		LogMsg("UICtrl::SetupFont moj11=%p\n", m_moj11);
 
 		// 4J-JEV: Ensure we redirect to them correctly, even if the objects were previously initialised.
 		m_moj7->registerFont();
+		LogMsg("UICtrl::SetupFont moj7 registered\n");
 		m_moj11->registerFont();
 	}
 	else if (m_eTargetFont != eFont_NotLoaded)

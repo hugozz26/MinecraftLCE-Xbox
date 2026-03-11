@@ -3,6 +3,8 @@
 #include "UIScene.h"
 #include "UISplitScreenHelpers.h"
 
+extern void LogMsg(const char* fmt, ...);
+
 #include "..\..\Lighting.h"
 #include "..\..\LocalPlayer.h"
 #include "..\..\ItemRenderer.h"
@@ -296,6 +298,11 @@ void UIScene::loadMovie()
 	if(!app.hasArchiveFile(moviePath))
 	{
 		app.DebugPrintf("WARNING: Could not find iggy movie %ls, falling back on 720\n", moviePath.c_str());
+		{
+			char buf[256];
+			wcstombs(buf, moviePath.c_str(), 256);
+			LogMsg("UIScene: 1080.swf NOT FOUND in archive: '%s'\n", buf);
+		}
 
 		moviePath = getMoviePath();
 		moviePath.append(L"720.swf");
@@ -303,14 +310,20 @@ void UIScene::loadMovie()
 
 		if(!app.hasArchiveFile(moviePath))
 		{
+			char buf[256];
+			wcstombs(buf, moviePath.c_str(), 256);
+			LogMsg("UIScene: 720.swf ALSO NOT FOUND: '%s' — skipping __debugbreak\n", buf);
 			app.DebugPrintf("ERROR: Could not find any iggy movie for %ls!\n", moviePath.c_str());
-#ifndef _CONTENT_PACKAGE
-			__debugbreak();
-#endif
+			// UWP: removed __debugbreak() to prevent STATUS_BREAKPOINT crash
 			app.FatalLoadError();
 		}
 	}
 
+	{
+		char buf[256];
+		wcstombs(buf, moviePath.c_str(), 256);
+		LogMsg("UIScene: loading movie '%s' from archive...\n", buf);
+	}
 	byteArray baFile = ui.getMovieData(moviePath.c_str());
 	int64_t beforeLoad = ui.iggyAllocCount;
 	swf = IggyPlayerCreateFromMemory ( baFile.data , baFile.length, nullptr);
@@ -319,9 +332,8 @@ void UIScene::loadMovie()
 	if(!swf)
 	{
 		app.DebugPrintf("ERROR: Failed to load iggy scene!\n");
-#ifndef _CONTENT_PACKAGE
-		__debugbreak();
-#endif
+		LogMsg("UIScene: IggyPlayerCreateFromMemory FAILED!\n");
+		// UWP: removed __debugbreak()
 		app.FatalLoadError();
 	}
 

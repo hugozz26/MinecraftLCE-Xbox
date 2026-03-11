@@ -1,4 +1,8 @@
 #include "stdafx.h"
+
+// Suppress inet_addr deprecation warning (C4996) — game uses it for LAN session IDs
+#pragma warning(disable : 4996)
+
 #include "..\..\..\Minecraft.World\Socket.h"
 #include "..\..\..\Minecraft.World\StringHelpers.h"
 #include "PlatformNetworkManagerStub.h"

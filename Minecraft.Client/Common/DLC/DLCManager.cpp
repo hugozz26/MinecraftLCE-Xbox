@@ -331,13 +331,13 @@ bool DLCManager::readDLCDataFile(DWORD &dwFilesProcessed, const string &path, DL
 #ifdef _WINDOWS64
 	string finalPath = StorageManager.GetMountedPath(path.c_str());
 	if(finalPath.size() == 0) finalPath = path;
-	HANDLE file = CreateFile(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileA(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #elif defined(_DURANGO)
 	wstring finalPath = StorageManager.GetMountedPath(wPath.c_str());
 	if(finalPath.size() == 0) finalPath = wPath;
-	HANDLE file = CreateFile(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileW(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #else
-	HANDLE file = CreateFile(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileA(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #endif
 	if( file == INVALID_HANDLE_VALUE )
 	{
@@ -538,13 +538,13 @@ DWORD DLCManager::retrievePackIDFromDLCDataFile(const string &path, DLCPack *pac
 #ifdef _WINDOWS64
 	string finalPath = StorageManager.GetMountedPath(path.c_str());
 	if(finalPath.size() == 0) finalPath = path;
-	HANDLE file = CreateFile(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileA(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #elif defined(_DURANGO)
 	wstring finalPath = StorageManager.GetMountedPath(wPath.c_str());
 	if(finalPath.size() == 0) finalPath = wPath;
-	HANDLE file = CreateFile(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileW(finalPath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #else
-	HANDLE file = CreateFile(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	HANDLE file = CreateFileA(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 #endif
 	if( file == INVALID_HANDLE_VALUE )
 	{

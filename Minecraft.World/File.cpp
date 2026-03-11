@@ -206,9 +206,14 @@ return (File *) parent;
 bool File::exists() const
 {
 	// TODO 4J Stu - Possible we could get an error result from something other than the file not existing?
-#ifdef _UNICODE
+#ifdef _UWP
+	// UWP: GetFileAttributes is restricted; use CreateFile to check existence
+	const char* path = wstringtofilename(getPath());
+	HANDLE h = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (h != INVALID_HANDLE_VALUE) { CloseHandle(h); return true; }
+	return false;
+#elif defined _UNICODE
 	return GetFileAttributes(  getPath().c_str() ) != -1;
-
 #else
 	return GetFileAttributes(  wstringtofilename(getPath()) ) != -1;
 #endif
@@ -242,7 +247,7 @@ bool File::renameTo(File dest)
 	__debugbreak();	// TODO
 	BOOL result = false;
 #else
-	BOOL result = MoveFile(sourcePath.c_str(), destPath);
+	BOOL result = MoveFileA(sourcePath.c_str(), destPath);
 #endif
 
 	if( result == 0 )
@@ -510,7 +515,19 @@ std::vector<File *> *File::listFiles(FileFilter *filter) const
 //true if and only if the file denoted by this abstract pathname exists and is a directory; false otherwise
 bool File::isDirectory() const
 {
-#ifdef _UNICODE
+#ifdef _UWP
+	// UWP: GetFileAttributes may be restricted; use CreateFile with BACKUP_SEMANTICS for directories
+	if (!exists()) return false;
+	const char* path = wstringtofilename(getPath());
+	HANDLE h = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+	if (h != INVALID_HANDLE_VALUE) {
+		BY_HANDLE_FILE_INFORMATION info;
+		BOOL ok = GetFileInformationByHandle(h, &info);
+		CloseHandle(h);
+		return ok && (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+	}
+	return false;
+#elif defined _UNICODE
 	return exists() && ( GetFileAttributes( getPath().c_str() ) & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY;
 #else
 	return exists() && ( GetFileAttributes( wstringtofilename(getPath()) ) & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY;
@@ -586,6 +603,22 @@ int64_t File::length()
 	}
 	return statData.fileSize;
 #else
+#ifdef _UWP
+	// UWP: GetFileAttributesEx is restricted; use CreateFile + GetFileSizeEx
+	const char* path = wstringtofilename(getPath());
+	HANDLE h = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (h != INVALID_HANDLE_VALUE)
+	{
+		LARGE_INTEGER liFileSize;
+		if (GetFileSizeEx(h, &liFileSize))
+		{
+			CloseHandle(h);
+			return liFileSize.QuadPart;
+		}
+		CloseHandle(h);
+	}
+	return 0l;
+#else
 	WIN32_FILE_ATTRIBUTE_DATA fileInfoBuffer;
 
 #ifdef _UNICODE
@@ -616,6 +649,7 @@ int64_t File::length()
 		//Fail or a Directory
 		return 0l;
 	}
+#endif // _UWP
 #endif
 }
 

@@ -4,6 +4,8 @@
 #include "..\Minecraft.World\ArrayWithLength.h"
 #include "BufferedImage.h"
 
+extern void LogMsg(const char* fmt, ...);
+
 #ifdef _XBOX
 typedef struct
 {
@@ -165,14 +167,17 @@ BufferedImage::BufferedImage(const wstring& File, bool filenameHasExtension /*=f
 #ifndef _CONTENT_PACKAGE
 		app.DebugPrintf("\n--- Loading TEXTURE - %s\n\n",pchTextureName);
 #endif
+		LogMsg("BufImg: Loading '%s' (mip=%d)...\n", pchTextureName, l);
 
 		D3DXIMAGE_INFO ImageInfo;
 		ZeroMemory(&ImageInfo,sizeof(D3DXIMAGE_INFO));
 		hr=RenderManager.LoadTextureData(pchTextureName,&ImageInfo,&data[l]);
+		LogMsg("BufImg: LoadTextureData hr=0x%08X data[%d]=%p  %dx%d\n", hr, l, data[l], ImageInfo.Width, ImageInfo.Height);
 
 
 		if(hr!=ERROR_SUCCESS)
 		{
+			LogMsg("BufImg: *** FAILED to load '%s'! ***\n", pchTextureName);
 			// 4J - If we haven't loaded the non-mipmap version then exit the game
 			if( l == 0 )
 			{

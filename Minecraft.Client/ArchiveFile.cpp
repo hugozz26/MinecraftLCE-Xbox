@@ -5,6 +5,8 @@
 
 #include "ArchiveFile.h"
 
+extern void LogMsg(const char* fmt, ...);
+
 void ArchiveFile::_readHeader(DataInputStream *dis)
 {
 	int numberOfFiles = dis->readInt();
@@ -33,11 +35,13 @@ ArchiveFile::ArchiveFile(File file)
 	m_cachedData = nullptr;
 	m_sourcefile = file;
 	app.DebugPrintf("Loading archive file...\n");
-#ifndef _CONTENT_PACKAGE
-	char buf[256];
-	wcstombs(buf, file.getPath().c_str(), 256);
-	app.DebugPrintf("archive file - %s\n",buf);
-#endif
+	{
+		char buf[512];
+		wcstombs(buf, file.getPath().c_str(), 512);
+		LogMsg("Archive: opening '%s'\n", buf);
+		LogMsg("Archive: wstringtofilename='%s'\n", wstringtofilename(file.getPath()));
+		LogMsg("Archive: file.exists()=%d file.length()=%lld\n", (int)file.exists(), (long long)file.length());
+	}
 
 	if(!file.exists())
 	{
@@ -48,8 +52,11 @@ ArchiveFile::ArchiveFile(File file)
 	FileInputStream fis(file);
 
 #if defined _XBOX_ONE || defined __ORBIS__ || defined _WINDOWS64
-	byteArray readArray(static_cast<unsigned int>(file.length()));
-	fis.read(readArray,0,file.length());
+	int64_t fileLen = file.length();
+	LogMsg("Archive: reading %lld bytes into memory...\n", (long long)fileLen);
+	byteArray readArray(static_cast<unsigned int>(fileLen));
+	int bytesRead = fis.read(readArray,0,fileLen);
+	LogMsg("Archive: fis.read returned %d\n", bytesRead);
 
 	ByteArrayInputStream bais(readArray);
 	DataInputStream dis(&bais);
@@ -60,6 +67,18 @@ ArchiveFile::ArchiveFile(File file)
 #endif
 
 	_readHeader(&dis);
+
+	LogMsg("Archive: loaded %d files from archive\n", (int)m_index.size());
+	// Log first 10 filenames for debugging
+	{
+		int count = 0;
+		for (auto& kv : m_index) {
+			char fn[256];
+			wcstombs(fn, kv.first.c_str(), 256);
+			LogMsg("Archive: [%d] '%s'\n", count, fn);
+			if (++count >= 20) { LogMsg("Archive: ... (%d more)\n", (int)m_index.size() - 20); break; }
+		}
+	}
 
 	dis.close();
 	fis.close();
@@ -103,9 +122,7 @@ byteArray ArchiveFile::getFile(const wstring &filename)
 	{
 		app.DebugPrintf("Couldn't find file in archive\n");
 		app.DebugPrintf("Failed to find file '%ls' in archive\n", filename.c_str());
-#ifndef _CONTENT_PACKAGE
-		__debugbreak();
-#endif
+		// UWP: removed __debugbreak()
 		app.FatalLoadError();
 	}
 	else

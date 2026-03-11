@@ -424,6 +424,8 @@ Minecraft.World/Release/
 Minecraft.World/x64_Release/
 
 build/*
+build_uwp/
+build_pc/
 
 # Existing build output files
 !x64/**/Effects.msscmp
@@ -437,3 +439,38 @@ Minecraft.Client/Saves/
 # Visual Studio Per-User Config
 *.user
 /out
+
+# ==============================================================================
+# UWP / Xbox build artifacts
+# ==============================================================================
+appx_layout/
+appx_output/
+
+# Backup files
+*.bak
+
+# Build logs (temp)
+build_err.log
+build_out.log
+build_pc_log*.txt
+build[0-9]*.txt
+cmake_log.txt
+cmake_pc_log*.txt
+cmake_vs_log.txt
+uwp_build_log.txt
+stderr.txt
+stdout.txt
+
+# Temp CMakeLists copies (the active one is CMakeLists.txt)
+CMakeLists_PC.txt
+CMakeLists_UWP.txt
+CMakeLists_UWP_active.txt
+
+# Temp PowerShell scripts (one-off helpers)
+create_uwp_x64_platform.ps1
+create_vclibs_manifest.ps1
+create_xaml_stub.ps1
+package_appx.ps1
+
+# Signing certificates (contain private keys — NEVER commit)
+*.pfx

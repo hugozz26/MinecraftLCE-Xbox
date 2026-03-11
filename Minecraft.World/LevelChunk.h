@@ -10,6 +10,7 @@ class EntitySelector;
 #include "SparseLightStorage.h"
 #include "CompressedTileStorage.h"
 #include "SparseDataStorage.h"
+#include "TilePos.h"
 
 #include "LightLayer.h"
 #include "Entity.h"

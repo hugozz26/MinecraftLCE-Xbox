@@ -1289,21 +1289,38 @@ void CleanupDevice()
 	if( g_pd3dDevice ) g_pd3dDevice->Release();
 }
 
+// --- DEBUG STARTUP LOG ---
+static void dbgLog(const char* msg) {
+	FILE* lf = nullptr;
+	fopen_s(&lf, "debug_startup.log", "a");
+	if (lf) { fprintf(lf, "%s\n", msg); fflush(lf); fclose(lf); }
+	OutputDebugStringA(msg);
+	OutputDebugStringA("\n");
+}
+
 static Minecraft* InitialiseMinecraftRuntime()
 {
+	dbgLog("DBG: InitialiseMinecraftRuntime START");
 	app.loadMediaArchive();
+	dbgLog("DBG: loadMediaArchive OK");
 
 	RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
+	dbgLog("DBG: RenderManager.Initialise OK");
 
 	app.loadStringTable();
+	dbgLog("DBG: loadStringTable OK");
 	ui.init(g_pd3dDevice, g_pImmediateContext, g_pRenderTargetView, g_pDepthStencilView, g_rScreenWidth, g_rScreenHeight);
+	dbgLog("DBG: ui.init OK");
 
+	dbgLog("DBG: InputManager.Initialise...");
 	InputManager.Initialise(1, 3, MINECRAFT_ACTION_MAX, ACTION_MAX_MENU);
 	g_KBMInput.Init();
 	DefineActions();
 	InputManager.SetJoypadMapVal(0, 0);
 	InputManager.SetKeyRepeatRate(0.3f, 0.2f);
+	dbgLog("DBG: InputManager OK");
 
+	dbgLog("DBG: ProfileManager.Initialise...");
 	ProfileManager.Initialise(TITLEID_MINECRAFT,
 		app.m_dwOfferID,
 		PROFILE_VERSION_10,
@@ -1314,8 +1331,11 @@ static Minecraft* InitialiseMinecraftRuntime()
 		&app.uiGameDefinedDataChangedBitmask
 	);
 	ProfileManager.SetDefaultOptionsCallback(&CConsoleMinecraftApp::DefaultOptionsCallback, (LPVOID)&app);
+	dbgLog("DBG: ProfileManager OK");
 
+	dbgLog("DBG: NetworkManager.Initialise...");
 	g_NetworkManager.Initialise();
+	dbgLog("DBG: NetworkManager OK");
 
 	for (int i = 0; i < MINECRAFT_NET_MAX_PLAYERS; i++)
 	{
@@ -1326,9 +1346,11 @@ static Minecraft* InitialiseMinecraftRuntime()
 	}
 	wcscpy_s(IQNet::m_player[0].m_gamertag, 32, g_Win64UsernameW);
 
+	dbgLog("DBG: WinsockNetLayer::Initialize...");
 	WinsockNetLayer::Initialize();
 
 	ProfileManager.SetDebugFullOverride(true);
+	dbgLog("DBG: Creating thread storage...");
 
 	Tesselator::CreateNewThreadStorage(1024 * 1024);
 	AABB::CreateNewThreadStorage();
@@ -1338,14 +1360,20 @@ static Minecraft* InitialiseMinecraftRuntime()
 	OldChunkStorage::CreateNewThreadStorage();
 	Level::enableLightingCache();
 	Tile::CreateNewThreadStorage();
+	dbgLog("DBG: Thread storage OK, calling Minecraft::main()...");
 
 	Minecraft::main();
 	Minecraft* pMinecraft = Minecraft::GetInstance();
-	if (pMinecraft == nullptr)
+	if (pMinecraft == nullptr) {
+		dbgLog("DBG: Minecraft::GetInstance() returned NULL!");
 		return nullptr;
+	}
+	dbgLog("DBG: Minecraft::main() OK");
 
 	app.InitGameSettings();
+	dbgLog("DBG: InitGameSettings OK");
 	app.InitialiseTips();
+	dbgLog("DBG: InitialiseTips OK");
 
 	return pMinecraft;
 }
@@ -1513,6 +1541,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
+	dbgLog("DBG: _tWinMain entered");
 	// 4J-Win64: set CWD to exe dir so asset paths resolve correctly
 	{
 		char szExeDir[MAX_PATH] = {};
@@ -1651,18 +1680,23 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	MyRegisterClass(hInstance);
 
 	// Perform application initialization:
+	dbgLog("DBG: calling InitInstance");
 	if (!InitInstance (hInstance, launchOptions.serverMode ? SW_HIDE : nCmdShow))
 	{
+		dbgLog("DBG: InitInstance FAILED");
 		return FALSE;
 	}
 
 	hMyInst=hInstance;
+	dbgLog("DBG: InitInstance OK, calling InitDevice");
 
 	if( FAILED( InitDevice() ) )
 	{
+		dbgLog("DBG: InitDevice FAILED");
 		CleanupDevice();
 		return 0;
 	}
+	dbgLog("DBG: InitDevice OK");
 
 	// Restore fullscreen state from previous session
 	if (LoadFullscreenOption() && !g_isFullscreen || launchOptions.fullscreen)
@@ -1729,12 +1763,15 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	}
 
 #endif
+	dbgLog("DBG: calling InitialiseMinecraftRuntime...");
 	Minecraft *pMinecraft = InitialiseMinecraftRuntime();
 	if (pMinecraft == nullptr)
 	{
+		dbgLog("DBG: InitialiseMinecraftRuntime returned NULL!");
 		CleanupDevice();
 		return 1;
 	}
+	dbgLog("DBG: InitialiseMinecraftRuntime OK, entering game loop");
 	g_bResizeReady = true;
 
 	//app.TemporaryCreateGameStart();

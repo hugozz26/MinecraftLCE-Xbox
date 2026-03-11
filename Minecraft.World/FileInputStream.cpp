@@ -3,6 +3,8 @@
 #include "File.h"
 #include "FileInputStream.h"
 
+extern void LogMsg(const char* fmt, ...);
+
 //Creates a FileInputStream by opening a connection to an actual file, the file named by the File object file in the file system.
 //A new FileDescriptor object is created to represent this file connection.
 //First, if there is a security manager, its checkRead method is called with the path represented by the file argument as its argument.
@@ -30,10 +32,10 @@ FileInputStream::FileInputStream(const File &file)
 		nullptr // Unsupported
 		);
 #else
-	m_fileHandle = CreateFile(
+	m_fileHandle = CreateFileA(
 		pchFilename, // file name
 		GENERIC_READ, // access mode
-		0, // share mode // TODO 4J Stu - Will we need to share file? Probably not but...
+		FILE_SHARE_READ, // share mode - allow other readers (needed for UWP File::length() calls)
 		nullptr, // Unused
 		OPEN_EXISTING , // how to create // TODO 4J Stu - Assuming that the file already exists if we are opening to read from it
 		FILE_FLAG_SEQUENTIAL_SCAN, // file attributes
@@ -45,7 +47,12 @@ FileInputStream::FileInputStream(const File &file)
 	{
 		// TODO 4J Stu - Any form of error/exception handling
 		//__debugbreak();
+		LogMsg("FIS: CreateFile FAILED! err=%lu path='%s'\n", GetLastError(), pchFilename);
 		app.FatalLoadError();
+	}
+	else
+	{
+		LogMsg("FIS: CreateFile OK handle=%p path='%s'\n", m_fileHandle, pchFilename);
 	}
 }
 
@@ -141,8 +148,12 @@ int FileInputStream::read(byteArray b, unsigned int offset, unsigned int length)
 		nullptr // overlapped buffer
 		);
 
+	LogMsg("FIS::read handle=%p offset=%u len=%u bSuccess=%d bytesRead=%lu\n",
+		m_fileHandle, offset, length, (int)bSuccess, numberOfBytesRead);
+
 	if( bSuccess==FALSE )
 	{
+		LogMsg("FIS::read ReadFile FAILED! err=%lu\n", GetLastError());
 		// TODO 4J Stu - Some kind of error handling
 		app.FatalLoadError();
 		//return -1;
