@@ -41,6 +41,50 @@ static SceInt32 g_DefaultCPU;
 static SceInt32 g_DefaultPriority;
 #endif
 
+static const char* GetSafeThreadName(const char* src, char* dst, size_t dstSize, const char* fallback)
+{
+	if (dst == nullptr || dstSize == 0)
+		return fallback;
+
+	if (src == nullptr)
+	{
+		strcpy_s(dst, dstSize, fallback);
+		return dst;
+	}
+
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+	__try
+	{
+		size_t i = 0;
+		for (; i + 1 < dstSize; ++i)
+		{
+			char c = src[i];
+			dst[i] = c;
+			if (c == '\0')
+				break;
+		}
+		dst[dstSize - 1] = '\0';
+		if (dst[0] == '\0')
+		{
+			strcpy_s(dst, dstSize, fallback);
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		strcpy_s(dst, dstSize, fallback);
+	}
+#else
+	strncpy(dst, src, dstSize - 1);
+	dst[dstSize - 1] = '\0';
+	if (dst[0] == '\0')
+	{
+		strcpy_s(dst, dstSize, fallback);
+	}
+#endif
+
+	return dst;
+}
+
 C4JThread::C4JThread( C4JThreadStartFunc* startFunc, void* param, const char* threadName, int stackSize/* = 0*/ )
 {
 	m_startFunc = startFunc;
@@ -54,10 +98,13 @@ C4JThread::C4JThread( C4JThreadStartFunc* startFunc, void* param, const char* th
 	if(m_stackSize < 16384)
 		m_stackSize = 16384;
 
+	char safeThreadName[64];
+	const char* threadNameForFormat = GetSafeThreadName(threadName, safeThreadName, sizeof(safeThreadName), "unnamed");
+
 #ifdef __PS3__
-	sprintf(m_threadName, "(4J) %s", threadName ? threadName : "unnamed" );
+	sprintf(m_threadName, "(4J) %s", threadNameForFormat );
 #else
-	sprintf_s(m_threadName,64, "(4J) %s", threadName ? threadName : "unnamed" );
+	sprintf_s(m_threadName,64, "(4J) %s", threadNameForFormat );
 #endif
 
 	m_isRunning = false;
@@ -93,18 +140,18 @@ C4JThread::C4JThread( C4JThreadStartFunc* startFunc, void* param, const char* th
 	// 2 - Server/Audio
 	// These three can sometimes consume ALL the CPU time so they are set to below average priority so as not to block other critical threads
 	int CPU = SCE_KERNEL_CPU_MASK_USER_ALL;
-	if( !strcmp(threadName, "Chunk update") )
+	if( !strcmp(threadNameForFormat, "Chunk update") )
 	{
 		CPU = SCE_KERNEL_CPU_MASK_USER_2;
 		m_priority = g_DefaultPriority + 1; 
 	}
-	if( !strcmp(threadName, "Server" ) )
+	if( !strcmp(threadNameForFormat, "Server" ) )
 	{
 		CPU = SCE_KERNEL_CPU_MASK_USER_1;
 		m_priority = g_DefaultPriority + 1; 
 	}
 	// make sure Tile Update doesn't go on cpu 0 because it will hold up the main thread. And it can't go on cpu 1 because Chunk Update crashes.
-	if( !strcmp(threadName, "Tile update") )
+	if( !strcmp(threadNameForFormat, "Tile update") )
 	{
 		CPU = SCE_KERNEL_CPU_MASK_USER_1;
 	}
@@ -132,10 +179,13 @@ C4JThread::C4JThread( const char* mainThreadName)
 	m_threadParam = nullptr;
 	m_stackSize = 0;
 
+	char safeMainThreadName[64];
+	const char* mainNameForFormat = GetSafeThreadName(mainThreadName, safeMainThreadName, sizeof(safeMainThreadName), "main");
+
 #ifdef __PS3__
-	sprintf(m_threadName, "(4J) %s", mainThreadName ? mainThreadName : "main" );
+	sprintf(m_threadName, "(4J) %s", mainNameForFormat );
 #else
-	sprintf_s(m_threadName, 64, "(4J) %s", mainThreadName ? mainThreadName : "main" );
+	sprintf_s(m_threadName, 64, "(4J) %s", mainNameForFormat );
 #endif
 	m_isRunning = true;
 	m_hasStarted = true;
