@@ -105,7 +105,10 @@ Connection::Connection(Socket *socket, const wstring& id, PacketListener *packet
 	m_hWakeReadThread = new C4JThread::Event;
 	m_hWakeWriteThread = new C4JThread::Event;
 
-	const char *szId = wstringtofilename(id);
+	// Thread names are labels (e.g. "Connection #0"), not file paths.
+	// Using wstringtofilename() on UWP prepends package path, creating very long
+	// names that can trip sprintf_s invalid-parameter checks in C4JThread.
+	const char *szId = wstringtochararray(id);
 	char readThreadName[256];
 	char writeThreadName[256];
 	sprintf(readThreadName,"%s read\n",szId);
