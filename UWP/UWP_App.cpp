@@ -561,6 +561,14 @@ void App::SetWindow(CoreWindow^ window)
     window->Closed +=
         ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(
             this, &App::OnWindowClosed);
+
+    // ---- Intercept the B-button "Back" navigation so Xbox doesn't quit ----
+    auto navMgr = Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
+    navMgr->BackRequested +=
+        ref new EventHandler<Windows::UI::Core::BackRequestedEventArgs^>(
+            this, &App::OnBackRequested);
+    LogMsg("UWP: BackRequested handler registered (B button won't quit)\n");
+
     LogMsg("UWP: SetWindow() DONE\n");
 }
 
@@ -570,6 +578,25 @@ void App::SetWindow(CoreWindow^ window)
 void App::Load(Platform::String^ /*entryPoint*/)
 {
     LogMsg("UWP: Load() START\n");
+
+    // ---- Pre-load Miles Sound System DLL ----
+    // On UWP, implicit DLL loading can fail silently for DLLs bundled in the
+    // app package.  Force-load mss64.dll early so the sound engine finds it.
+    {
+        HMODULE hMss = LoadPackagedLibrary(L"mss64.dll", 0);
+        if (hMss) {
+            LogMsg("UWP: mss64.dll pre-loaded OK, handle=%p\n", hMss);
+        } else {
+            DWORD err = GetLastError();
+            LogMsg("UWP: *** mss64.dll pre-load FAILED, err=%lu (0x%08X) ***\n", err, err);
+            // Also try regular LoadLibraryW as fallback
+            hMss = LoadLibraryW(L"mss64.dll");
+            if (hMss)
+                LogMsg("UWP: mss64.dll LoadLibraryW fallback OK, handle=%p\n", hMss);
+            else
+                LogMsg("UWP: mss64.dll LoadLibraryW also failed, err=%lu\n", GetLastError());
+        }
+    }
 
     // Fetch the Xbox gamertag BEFORE creating any game objects
     LogMsg("UWP: Calling FetchXboxGamertag...\n");
@@ -585,6 +612,9 @@ void App::Load(Platform::String^ /*entryPoint*/)
 // ============================================================================
 // IFrameworkView::Run — main game loop (replaces Win32 message pump)
 // ============================================================================
+static bool s_wasGameStarted = false;
+static int  s_tickCount = 0;
+
 void App::Run()
 {
     LogMsg("UWP: Run() START\n");
@@ -604,19 +634,32 @@ void App::Run()
     {
         if (m_windowVisible)
         {
-            // Process all pending UWP events (replaces PeekMessage/DispatchMessage)
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(
                 CoreProcessEventsOption::ProcessAllIfPresent);
+
+            // Log transition into "game started" (world loaded)
+            bool nowStarted = app.GetGameStarted();
+            if (nowStarted && !s_wasGameStarted) {
+                LogMsg("UWP: *** GAME STARTED — world is now active! tick=%d ***\n", s_tickCount);
+                LogMsg("UWP: level=%p player=%p\n",
+                       m_pMinecraft ? m_pMinecraft->level : nullptr,
+                       m_pMinecraft ? m_pMinecraft->player.get() : nullptr);
+                g_logFile.flush();
+            }
+            s_wasGameStarted = nowStarted;
+            s_tickCount++;
 
             GameTick();
         }
         else
         {
-            // Suspended / not visible — block until an event wakes us
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(
                 CoreProcessEventsOption::ProcessOneAndAllPending);
         }
     }
+
+    LogMsg("UWP: Run() exiting (windowClosed=%d shutdown=%d)\n",
+           m_windowClosed, app.m_bShutdown);
 }
 
 // ============================================================================
@@ -631,12 +674,21 @@ void App::Uninitialize()
 // ============================================================================
 // GameTick — ONE frame (faithful reproduction of the Win32 main loop)
 // ============================================================================
+static int  s_gameTickCount = 0;
+static bool s_gameStartedInTick = false;
+static int  s_gameStartedFrame = 0;
+
 void App::GameTick()
 {
     if (!m_gameInitialized || !m_pMinecraft) return;
 
+    s_gameTickCount++;
+
     __try
     {
+        // Verbose logging for first 10 frames after game starts (world loaded)
+        bool verbose = s_gameStartedInTick && (s_gameTickCount - s_gameStartedFrame) < 10;
+
         RenderManager.StartFrame();
 
         app.UpdateTime();
@@ -652,7 +704,17 @@ void App::GameTick()
         // Game logic
         if (app.GetGameStarted())
         {
+            if (!s_gameStartedInTick) {
+                s_gameStartedInTick = true;
+                s_gameStartedFrame = s_gameTickCount;
+                LogMsg("UWP: GAMETICK — GetGameStarted() first TRUE at tick %d\n", s_gameTickCount);
+                LogMsg("UWP: GAMETICK — level=%p player=%p\n",
+                       m_pMinecraft->level, m_pMinecraft->player.get());
+                g_logFile.flush();
+            }
+            if (verbose) { LogMsg("UWP: GT[%d] calling run_middle()\n", s_gameTickCount); g_logFile.flush(); }
             m_pMinecraft->run_middle();
+            if (verbose) { LogMsg("UWP: GT[%d] run_middle() OK\n", s_gameTickCount); g_logFile.flush(); }
             app.SetAppPaused(
                 g_NetworkManager.IsLocalGame() &&
                 g_NetworkManager.GetPlayerCount() == 1 &&
@@ -667,14 +729,19 @@ void App::GameTick()
                 m_pMinecraft->tickAllConnections();
         }
 
+        if (verbose) { LogMsg("UWP: GT[%d] calling playMusicTick\n", s_gameTickCount); g_logFile.flush(); }
         m_pMinecraft->soundEngine->playMusicTick();
 
+        if (verbose) { LogMsg("UWP: GT[%d] calling ui.tick()\n", s_gameTickCount); g_logFile.flush(); }
         ui.tick();
+        if (verbose) { LogMsg("UWP: GT[%d] calling ui.render()\n", s_gameTickCount); g_logFile.flush(); }
         ui.render();
 
+        if (verbose) { LogMsg("UWP: GT[%d] calling ApplyGammaPostProcess\n", s_gameTickCount); g_logFile.flush(); }
         m_pMinecraft->gameRenderer->ApplyGammaPostProcess();
 
         // Present
+        if (verbose) { LogMsg("UWP: GT[%d] calling Present\n", s_gameTickCount); g_logFile.flush(); }
         RenderManager.Present();
 
         ui.CheckMenuDisplayed();
@@ -697,9 +764,9 @@ void App::GameTick()
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
         DWORD code = GetExceptionCode();
-        LogMsg("UWP: *** CRASH in GameTick! Exception code=0x%08X ***\n", code);
-        LogMsg("UWP: GameStarted=%d level=%p player=%p\n",
-               app.GetGameStarted(),
+        LogMsg("UWP: *** CRASH in GameTick! Exception code=0x%08X tick=%d ***\n", code, s_gameTickCount);
+        LogMsg("UWP: GameStarted=%d gameStartedInTick=%d level=%p player=%p\n",
+               app.GetGameStarted(), s_gameStartedInTick,
                m_pMinecraft ? m_pMinecraft->level : nullptr,
                m_pMinecraft ? m_pMinecraft->player.get() : nullptr);
         g_logFile.flush();
@@ -880,6 +947,13 @@ void App::CreateDeviceAndSwapChain()
 // ============================================================================
 // Event handlers
 // ============================================================================
+void App::OnBackRequested(Platform::Object^, Windows::UI::Core::BackRequestedEventArgs^ e)
+{
+    // Swallow the "Back" event so the B button doesn't close the app.
+    // The game's own input mapping handles B as ACTION_MENU_CANCEL / DROP.
+    e->Handled = true;
+}
+
 void App::OnActivated(CoreApplicationView^, IActivatedEventArgs^)
 {
     CoreWindow::GetForCurrentThread()->Activate();

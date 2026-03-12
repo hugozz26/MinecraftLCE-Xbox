@@ -58,12 +58,14 @@ void KeyboardMouseInput::Init()
 	m_charBufferHead = 0;
 	m_charBufferTail = 0;
 
+#ifndef _UWP
 	RAWINPUTDEVICE rid;
 	rid.usUsagePage = 0x01; // HID_USAGE_PAGE_GENERIC
 	rid.usUsage = 0x02;     // HID_USAGE_GENERIC_MOUSE
 	rid.dwFlags = 0;
 	rid.hwndTarget = g_hWnd;
 	RegisterRawInputDevices(&rid, 1, sizeof(rid));
+#endif
 }
 
 void KeyboardMouseInput::ClearAllState()

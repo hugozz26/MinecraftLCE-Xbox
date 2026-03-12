@@ -54,6 +54,7 @@ private:
     void OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args);
     void OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ args);
     void OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ args);
+    void OnBackRequested(Platform::Object^ sender, Windows::UI::Core::BackRequestedEventArgs^ e);
 
     void CreateDeviceAndSwapChain();
     void GameTick();

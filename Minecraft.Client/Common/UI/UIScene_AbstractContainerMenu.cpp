@@ -265,7 +265,15 @@ void UIScene_AbstractContainerMenu::getMouseToSWFScale(float &scaleX, float &sca
 {
 	extern HWND g_hWnd;
 	RECT rc;
-	GetClientRect(g_hWnd, &rc);
+	if (!g_hWnd || !GetClientRect(g_hWnd, &rc))
+	{
+		// UWP / Xbox: no HWND — use logical screen dimensions as window size
+		extern int g_iScreenWidth;
+		extern int g_iScreenHeight;
+		rc.left = 0; rc.top = 0;
+		rc.right = g_iScreenWidth > 0 ? g_iScreenWidth : 1920;
+		rc.bottom = g_iScreenHeight > 0 ? g_iScreenHeight : 1080;
+	}
 	int winW = rc.right - rc.left;
 	int winH = rc.bottom - rc.top;
 	if(winW <= 0 || winH <= 0) { scaleX = 1.0f; scaleY = 1.0f; return; }

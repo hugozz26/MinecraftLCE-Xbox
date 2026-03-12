@@ -86,10 +86,18 @@ int Mouse::getX()
 int Mouse::getY()
 {
 	// Return Y in bottom-up coordinates (OpenGL convention, matching original Java LWJGL Mouse)
+#ifdef _UWP
+	// On UWP g_hWnd is NULL and USER32.dll may not exist on Xbox.
+	// Use the logical screen height from the Minecraft instance instead.
+	extern int g_iScreenHeight;
+	int h = g_iScreenHeight > 0 ? g_iScreenHeight : 720;
+	return (h - 1) - g_KBMInput.GetMouseY();
+#else
 	extern HWND g_hWnd;
 	RECT rect;
 	GetClientRect(g_hWnd, &rect);
 	return (rect.bottom - 1) - g_KBMInput.GetMouseY();
+#endif
 }
 
 bool Mouse::isButtonDown(int button)

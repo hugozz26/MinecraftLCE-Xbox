@@ -55,9 +55,9 @@ C4JThread::C4JThread( C4JThreadStartFunc* startFunc, void* param, const char* th
 		m_stackSize = 16384;
 
 #ifdef __PS3__
-	sprintf(m_threadName, "(4J) %s", threadName );
+	sprintf(m_threadName, "(4J) %s", threadName ? threadName : "unnamed" );
 #else
-	sprintf_s(m_threadName,64, "(4J) %s", threadName );
+	sprintf_s(m_threadName,64, "(4J) %s", threadName ? threadName : "unnamed" );
 #endif
 
 	m_isRunning = false;
@@ -133,9 +133,9 @@ C4JThread::C4JThread( const char* mainThreadName)
 	m_stackSize = 0;
 
 #ifdef __PS3__
-	sprintf(m_threadName, "(4J) %s", mainThreadName);
+	sprintf(m_threadName, "(4J) %s", mainThreadName ? mainThreadName : "main" );
 #else
-	sprintf_s(m_threadName, 64, "(4J) %s", mainThreadName);
+	sprintf_s(m_threadName, 64, "(4J) %s", mainThreadName ? mainThreadName : "main" );
 #endif
 	m_isRunning = true;
 	m_hasStarted = true;
