@@ -327,7 +327,15 @@ void Minecraft::init()
 
 	// glClearColor(0.2f, 0.2f, 0.2f, 1);
 
+	#ifdef _UWP
+	extern char g_LocalStatePath[512];
+	workingDirectory = File(convStringToWstring(std::string(g_LocalStatePath)));
+	#else
 	workingDirectory = File(L"");//getWorkingDirectory();
+	#endif
+	workingDirectory.mkdirs();
+	File savesDir(workingDirectory, L"saves");
+	savesDir.mkdirs();
 	levelSource = new McRegionLevelStorageSource(File(workingDirectory, L"saves"));
 	//        levelSource = new MemoryLevelStorageSource();
 	options = new Options(this, workingDirectory);

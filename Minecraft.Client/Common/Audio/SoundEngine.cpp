@@ -33,7 +33,7 @@
 #endif 
 
 // take out Orbis until they are done
-#if defined _XBOX 
+#if defined _XBOX && !defined(_UWP)
 
 SoundEngine::SoundEngine() {}
 void SoundEngine::init(Options *pOptions)

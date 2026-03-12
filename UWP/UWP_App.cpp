@@ -125,6 +125,7 @@ extern Renderer InternalRenderManager;
 
 // Global package root path — used by BufferedImage, FileInputStream, etc.
 char g_PackageRootPath[512] = {};
+char g_LocalStatePath[512] = {};
 
 HINSTANCE               hMyInst = nullptr;
 char                    chGlobalText[256] = {};
@@ -519,13 +520,21 @@ void App::Initialize(CoreApplicationView^ applicationView)
         LogMsg("UWP: CWD = %s\n", cwd);
 
         auto pkg = Windows::ApplicationModel::Package::Current;
+        auto localFolder = Windows::Storage::ApplicationData::Current->LocalFolder;
         auto installPath = pkg->InstalledLocation->Path;
+        auto localStatePath = localFolder->Path;
         char installPathA[512] = {};
+        char localStatePathA[512] = {};
         WideCharToMultiByte(CP_ACP, 0, installPath->Data(), -1, installPathA, 512, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, localStatePath->Data(), -1, localStatePathA, 512, nullptr, nullptr);
         LogMsg("UWP: Package install path = %s\n", installPathA);
+        LogMsg("UWP: LocalState path = %s\n", localStatePathA);
 
         strncpy(g_PackageRootPath, installPathA, 511);
         g_PackageRootPath[511] = '\0';
+
+        strncpy(g_LocalStatePath, localStatePathA, 511);
+        g_LocalStatePath[511] = '\0';
 
         SetCurrentDirectoryA(installPathA);
         LogMsg("UWP: CWD set to package install path\n");
