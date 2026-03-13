@@ -28,7 +28,7 @@ that allows packaging the game as an `.appx` and sideloading it onto an Xbox One
 |  Gamepad | ⏳ Work in progress |
 |  Audio | ⏳ Miles Sound System won't load |
 |  Save/Load | ⏳ Needs path adaptation |
-|  Multiplayer | ⏳ Not tested on Xbox |
+|  Multiplayer | ✅️ Tested on Xbox and funcional |
 
 ---
 
